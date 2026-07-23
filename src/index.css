@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-void text-ink-hi font-body antialiased;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(139,92,246,0.16), transparent 38%),
+    radial-gradient(circle at 85% 20%, rgba(59,130,246,0.14), transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(225,29,72,0.10), transparent 45%),
+    #05040A;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(139,92,246,0.4);
+}
+
+/* Glass panel — the base surface material of every Citadel card */
+.glass {
+  background: linear-gradient(180deg, rgba(26,20,48,0.72), rgba(18,14,36,0.55));
+  border: 1px solid rgba(167,159,201,0.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.glass-border-purple {
+  border-color: rgba(139,92,246,0.4);
+}
+
+.glow-ring {
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.25), 0 0 40px rgba(139,92,246,0.18);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, #A78BFA 0%, #60A5FA 55%, #FB7185 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #05040A; }
+::-webkit-scrollbar-thumb { background: #2A2148; border-radius: 8px; }
