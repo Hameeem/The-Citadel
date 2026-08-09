@@ -4,7 +4,24 @@
 
 export type Universe = 'Anime' | 'Marvel' | 'DC' | 'Games' | 'Cartoons' | 'Movies' | 'Mythology' | 'Comics'
 
-export type Alignment = 'Hero' | 'Villain' | 'Anti-Hero' | 'Neutral'
+export type Alignment = 'Hero' | 'Villain' | 'Anti-Hero' | 'Neutral' | 'Omnipotent'
+
+export type PowerTier = 'SSS' | 'SS' | 'S' | 'A' | 'B'
+
+export interface PrimarySourceInfo {
+  type: 'Manga' | 'Comic' | 'Mythology' | 'Game Lore' | 'Light Novel' | 'Original Novel'
+  title: string
+  publisherOrCreator: string
+  eraOrDebut: string
+  peakMangaOrComicFeat: string
+}
+
+export interface AdaptationMediaInfo {
+  type: 'Anime' | 'Movie (MCU/DCEU)' | 'Live Action Film' | 'Animated Series' | 'Game Adaptation'
+  title: string
+  studioOrDistributor: string
+  adaptationFeat: string
+}
 
 /** A single stat, always paired with the evidence behind the number. */
 export interface Stat {
@@ -54,11 +71,11 @@ export interface Character {
   alignment: Alignment
   species: string
   occupation: string
-  status: 'Active' | 'Deceased' | 'Unknown'
+  status: 'Active' | 'Deceased' | 'Unknown' | 'Eternal'
   debut: string
   affiliations: string[]
-  emblemColor: string // hex — used to render the abstract SVG emblem, no likeness art
-  emblemGlyph: 'flame' | 'bolt' | 'shield' | 'star' | 'snowflake' | 'atom' | 'moon'
+  emblemColor: string // hex — used to render glowing accents, theme colors
+  emblemGlyph: 'flame' | 'bolt' | 'shield' | 'star' | 'snowflake' | 'atom' | 'moon' | 'sword' | 'eye' | 'dragon'
   tagline: string
   bio: string
   popularity: number // 0-100 relative index
@@ -67,4 +84,19 @@ export interface Character {
   growth: GrowthStage[]
   archive: ArchiveEntry[]
   battleHistory: BattleRecord[]
+  
+  // Dual-Canon Source Architecture
+  primarySource?: PrimarySourceInfo
+  adaptationMedia?: AdaptationMediaInfo
+
+  // Enhanced media & metadata properties
+  imageUrl?: string // High-resolution portrait / character render (Pinterest / official art)
+  bannerUrl?: string // Wide cinematic wallpaper / arena background
+  galleryImages?: string[] // Alternate Pinterest / aesthetic art renders
+  japaneseName?: string // Kanji/Katakana for Anime characters
+  tier?: PowerTier // Power tier (SSS, SS, S, A, B)
+  voiceActor?: string // Japanese/English voice actor
+  quote?: string // Iconic quote
+  sourceUrl?: string // Link to official MyAnimeList / Wiki / Comic source
+  isCustom?: boolean // True if imported via MAL / Wikipedia / Pinterest live fetcher
 }
