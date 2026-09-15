@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Character } from '../types/character'
+import { getMangaPeakProfile } from '../lib/mangaPowerScaling'
 
 interface EmblemProps {
   character: Character
@@ -10,6 +11,15 @@ interface EmblemProps {
 export default function Emblem({ character, size = 96, showImage = true }: EmblemProps) {
   const [imgError, setImgError] = useState(false)
   const c = character.emblemColor || '#8B5CF6'
+
+  // Attempt to resolve image URL from profile or peak registry fallback if primary fails
+  const peakProfile = getMangaPeakProfile(character.name)
+  const resolvedImageUrl =
+    !imgError && character.imageUrl
+      ? character.imageUrl
+      : !imgError && peakProfile?.imageUrl
+      ? peakProfile.imageUrl
+      : undefined
 
   const glyphs: Record<string, JSX.Element> = {
     flame: <path d="M50 15 C35 35 30 50 40 65 C35 60 33 52 38 45 C38 60 45 72 58 75 C70 78 78 68 76 55 C74 44 66 40 66 30 C66 30 78 40 78 58 C78 76 64 88 48 85 C30 81 20 65 24 48 C28 32 42 25 50 15 Z" />,
@@ -25,8 +35,7 @@ export default function Emblem({ character, size = 96, showImage = true }: Emble
   }
 
   const selectedGlyph = glyphs[character.emblemGlyph] || glyphs.flame
-
-  const hasImage = showImage && character.imageUrl && !imgError
+  const hasImage = showImage && Boolean(resolvedImageUrl)
 
   return (
     <div
@@ -46,10 +55,10 @@ export default function Emblem({ character, size = 96, showImage = true }: Emble
 
       {hasImage ? (
         <img
-          src={character.imageUrl}
+          src={resolvedImageUrl}
           alt={character.name}
           onError={() => setImgError(true)}
-          className="w-full h-full object-cover object-top relative z-10 filter contrast-105 brightness-100"
+          className="w-full h-full object-cover object-top relative z-10 filter contrast-105 brightness-100 transition-opacity duration-300"
           loading="lazy"
         />
       ) : (

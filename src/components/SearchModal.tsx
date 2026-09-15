@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Sparkles, Plus, Loader2, Globe, Database, ArrowRight, ExternalLink } from 'lucide-react'
+import { Search, X, Sparkles, Loader2, Globe, ArrowRight, ExternalLink, Flame } from 'lucide-react'
 import { useAllCharacters } from '../lib/citadelStore'
 import {
   searchUniversalMultiverse,
-  convertUniversalToCitadelCharacter,
+  autoImportSearchResult,
   type UniversalSearchResult,
 } from '../lib/apiServices'
 import { getPinterestSearchUrl } from '../lib/imageLibrary'
@@ -31,12 +31,11 @@ const UNIVERSE_TABS: Array<Universe | 'All'> = [
 
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const navigate = useNavigate()
-  const { characters, addCharacter } = useAllCharacters()
+  const { characters } = useAllCharacters()
   const [query, setQuery] = useState('')
   const [activeUniverse, setActiveUniverse] = useState<Universe | 'All'>('All')
   const [liveResults, setLiveResults] = useState<UniversalSearchResult[]>([])
   const [isSearchingLive, setIsSearchingLive] = useState(false)
-  const [importingId, setImportingId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -49,7 +48,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
   }, [isOpen])
 
-  // Debounced search for universal multiverse search
+  // Debounced search for live universal multiverse search
   useEffect(() => {
     if (!query.trim() || query.length < 2) {
       setLiveResults([])
@@ -61,7 +60,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       const results = await searchUniversalMultiverse(query, activeUniverse)
       setLiveResults(results)
       setIsSearchingLive(false)
-    }, 450)
+    }, 350)
 
     return () => clearTimeout(timer)
   }, [query, activeUniverse])
@@ -77,15 +76,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       )
     : characters.filter((c) => activeUniverse === 'All' || c.universe === activeUniverse).slice(0, 6)
 
-  const handleImportUniversal = (result: UniversalSearchResult) => {
+  const handleSelectLiveResult = (result: UniversalSearchResult) => {
     sound.playVictory()
-    setImportingId(result.id)
-    const converted = convertUniversalToCitadelCharacter(result)
-    addCharacter(converted)
-    setTimeout(() => {
-      onClose()
-      navigate(`/character/${converted.id}`)
-    }, 500)
+    const converted = autoImportSearchResult(result)
+    onClose()
+    navigate(`/character/${converted.id}`)
   }
 
   if (!isOpen) return null
@@ -115,7 +110,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-bright" />
               <span className="font-display text-sm tracking-wider text-gradient font-bold">
-                UNIVERSAL MULTIVERSE OMNI-SEARCH
+                MULTIVERSE LIVE OMNI-SEARCH & DOSSIER ENGINE
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -139,7 +134,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search ANY hero (Anime, Marvel, DC, Gaming, Mythology, Movies)…"
+              placeholder="Type ANY hero (Shanks, Minato, Beyonder, Gojo, Kratos, Thor)…"
               className="w-full pl-12 pr-4 py-3.5 rounded-2xl glass bg-void/60 text-ink-hi placeholder:text-ink-low text-base focus:outline-none focus:glow-ring font-body"
             />
           </div>
@@ -169,7 +164,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             {/* 1. Citadel Archive Matches */}
             <div>
               <div className="text-[10px] font-head tracking-[0.2em] text-ink-low mb-2 flex items-center justify-between">
-                <span>CITADEL ARCHIVE ({citadelMatches.length} RECORDS)</span>
+                <span>CITADEL ARCHIVE ({citadelMatches.length} INDEXED RECORDS)</span>
               </div>
               <div className="space-y-2">
                 {citadelMatches.map((c) => (
@@ -185,8 +180,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     <div className="flex items-center gap-3">
                       <Emblem character={c} size={44} />
                       <div>
-                        <div className="font-head text-sm font-bold text-ink-hi group-hover:text-purple-bright transition-colors">
-                          {c.name}
+                        <div className="font-head text-sm font-bold text-ink-hi group-hover:text-purple-bright transition-colors flex items-center gap-2">
+                          <span>{c.name}</span>
+                          {c.isUnrevealedApex && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                              <Flame className="w-2.5 h-2.5 text-amber-400" /> APEX
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-ink-low">
                           {c.universe} · {c.series}
@@ -204,12 +204,12 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               </div>
             </div>
 
-            {/* 2. Universal Multiverse Live API Results */}
+            {/* 2. Live Multiverse Real-Time API Search Results */}
             {query.trim().length >= 2 && (
               <div>
                 <div className="text-[10px] font-head tracking-[0.2em] text-blue-bright mb-2 flex items-center justify-between pt-2 border-t border-white/10">
                   <span className="flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5" /> LIVE MULTIVERSE SEARCH (MAL + WIKI + PINTEREST)
+                    <Globe className="w-3.5 h-3.5" /> LIVE REPOSITORY SEARCH (AUTOMATIC AUTO-OPEN)
                   </span>
                   {isSearchingLive && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue" />}
                 </div>
@@ -217,11 +217,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 {isSearchingLive && liveResults.length === 0 ? (
                   <div className="text-center py-6 text-xs text-ink-mid font-mono flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-blue" />
-                    Querying universal repositories for "{query}"…
+                    Querying live repositories for "{query}"…
                   </div>
                 ) : liveResults.length === 0 && !isSearchingLive ? (
                   <div className="text-center py-4 text-xs text-ink-low">
-                    No live results found. Try searching with alternate spelling or character aliases.
+                    No live results found. Try alternate character names or aliases.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -230,7 +230,8 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       return (
                         <div
                           key={r.id}
-                          className="flex items-center justify-between p-3 rounded-xl glass hover:border-blue/50 border border-white/5 transition-all group gap-3"
+                          onClick={() => handleSelectLiveResult(r)}
+                          className="flex items-center justify-between p-3 rounded-xl glass hover:border-blue/50 border border-white/5 transition-all group gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-11 h-11 rounded-xl overflow-hidden glass shrink-0 border border-blue/30">
@@ -248,6 +249,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded glass text-purple-bright">
                                   {r.universe}
                                 </span>
+                                {r.isUnrevealedApex && (
+                                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                    <Flame className="w-2.5 h-2.5 text-amber-400" /> APEX
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-ink-low truncate">
                                 {r.series} · Source: {r.source}
@@ -264,21 +270,12 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                               className="p-1.5 rounded-lg glass text-red-400 hover:bg-red-500/20 text-[10px] font-head font-bold flex items-center gap-1"
                               title="Search Pinterest Photos"
                             >
-                              <span>Pinterest</span>
+                              <span>Pins</span>
                               <ExternalLink className="w-3 h-3" />
                             </a>
-                            <button
-                              onClick={() => handleImportUniversal(r)}
-                              disabled={importingId === r.id}
-                              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue to-purple text-void font-head font-bold text-xs hover:scale-105 transition-transform shrink-0 flex items-center gap-1.5 shadow-glow-blue"
-                            >
-                              {importingId === r.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Plus className="w-3.5 h-3.5" />
-                              )}
-                              IMPORT HERO
-                            </button>
+                            <span className="px-3 py-1 rounded-xl bg-purple text-void font-head font-bold text-xs flex items-center gap-1">
+                              OPEN <ArrowRight className="w-3 h-3" />
+                            </span>
                           </div>
                         </div>
                       )

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Flame } from 'lucide-react'
 import Emblem from './Emblem'
 import PowerSignature from './PowerSignature'
 import type { Character } from '../types/character'
@@ -93,6 +94,12 @@ export default function CharacterCard({ character, index = 0 }: { character: Cha
                   ★ {character.popularity}
                 </span>
               </div>
+
+              {character.isUnrevealedApex && (
+                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1 shadow-glow">
+                  <Flame className="w-2.5 h-2.5 text-amber-400 animate-pulse" /> UNREVEALED APEX
+                </span>
+              )}
             </div>
           </div>
 

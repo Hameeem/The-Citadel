@@ -1,5 +1,6 @@
 import type { Character, Stat, Ability, ArchiveEntry, PowerTier, Universe } from '../types/character'
 import { getMangaPeakProfile } from './mangaPowerScaling'
+import { saveCustomCharacter } from './citadelStore'
 
 // ==========================================
 // 1. Universal Search Result Interface
@@ -12,10 +13,12 @@ export interface UniversalSearchResult {
   universe: Universe
   imageUrl?: string
   description?: string
-  source: 'MyAnimeList' | 'AniList' | 'Wikipedia' | 'Citadel'
+  source: 'MyAnimeList' | 'AniList' | 'Wikipedia' | 'IMDb' | 'Citadel'
   sourceUrl?: string
   nativeName?: string
   popularityScore?: number
+  isUnrevealedApex?: boolean
+  unrevealedPowerReasoning?: string
   raw?: unknown
 }
 
@@ -73,30 +76,7 @@ export async function searchMyAnimeList(query: string): Promise<MalCharacterResu
 // 3. AniList GraphQL API
 // ==========================================
 
-export interface AniListCharacterResult {
-  id: number
-  name: {
-    full: string
-    native?: string
-    userPreferred?: string
-    alternative?: string[]
-  }
-  image: {
-    large: string
-    medium: string
-  }
-  description?: string
-  favourites: number
-  media?: {
-    nodes: Array<{
-      id: number
-      title: { romaji: string; english: string }
-      bannerImage?: string
-    }>
-  }
-}
-
-export async function searchAniList(query: string): Promise<AniListCharacterResult[]> {
+export async function searchAniList(query: string): Promise<any[]> {
   if (!query.trim()) return []
   const graphqlQuery = `
     query ($search: String) {
@@ -107,7 +87,6 @@ export async function searchAniList(query: string): Promise<AniListCharacterResu
             full
             native
             userPreferred
-            alternative
           }
           image {
             large
@@ -115,16 +94,6 @@ export async function searchAniList(query: string): Promise<AniListCharacterResu
           }
           description
           favourites
-          media(page: 1, perPage: 2) {
-            nodes {
-              id
-              title {
-                romaji
-                english
-              }
-              bannerImage
-            }
-          }
         }
       }
     }
@@ -198,18 +167,18 @@ export async function searchWikipediaCharacter(query: string, universe?: string)
 }
 
 // ==========================================
-// 5. Universal All-Universe Search Engine
+// 5. Universal All-Universe Live Search Engine
 // ==========================================
 
 function guessUniverseFromName(name: string, description: string = ''): Universe {
   const norm = (name + ' ' + description).toLowerCase()
   if (/marvel|avengers|stark|spiderman|spider-man|thor|thanos|x-men|wolverine|hulk|captain america/i.test(norm)) return 'Marvel'
-  if (/dc comics|batman|superman|joker|gotham|flash|wonder woman|justice league|krypton/i.test(norm)) return 'DC'
+  if (/dc comics|batman|superman|joker|gotham|flash|wonder woman|justice league|krypton|lucifer/i.test(norm)) return 'DC'
   if (/god of war|kratos|halo|zelda|mario|witcher|elden ring|devil may cry|vergil|dante|final fantasy/i.test(norm)) return 'Games'
   if (/journey to the west|wukong|zeus|odin|hercules|poseidon|anubis|mythology/i.test(norm)) return 'Mythology'
   if (/disney|frozen|star wars|vader|pixar|harry potter|movie|cinema/i.test(norm)) return 'Movies'
   if (/cartoon|ben 10|avatar|aang|rick and morty|spongebob|samurai jack/i.test(norm)) return 'Cartoons'
-  if (/one piece|naruto|dragon ball|goku|jujutsu|bleach|attack on titan|demon slayer|frieren|hunter x hunter|killua|gon/i.test(norm)) return 'Anime'
+  if (/one piece|shanks|naruto|minato|dragon ball|goku|jujutsu|bleach|attack on titan|demon slayer|frieren|hunter x hunter|killua|gon/i.test(norm)) return 'Anime'
   return 'Anime'
 }
 
@@ -222,22 +191,25 @@ export async function searchUniversalMultiverse(query: string, universeFilter: U
 
   const promises: Promise<void>[] = []
 
-  // 1. Query MyAnimeList (Jikan)
+  // 1. Query MyAnimeList (Jikan API v4)
   if (fetchAnime) {
     promises.push(
       searchMyAnimeList(query).then((malItems) => {
         malItems.forEach((m) => {
+          const peakProf = getMangaPeakProfile(m.name)
           results.push({
-            id: `mal-${m.mal_id}`,
-            name: m.name,
-            nativeName: m.name_kanji || undefined,
-            series: m.anime?.[0]?.anime?.title || 'Anime',
+            id: peakProf ? `manga-${peakProf.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : `mal-${m.mal_id}`,
+            name: peakProf?.name || m.name,
+            nativeName: m.name_kanji || peakProf?.japaneseName || undefined,
+            series: m.anime?.[0]?.anime?.title || peakProf?.series || 'Anime',
             universe: 'Anime',
-            imageUrl: m.images.webp?.large_image_url || m.images.jpg?.image_url,
-            description: m.about?.replace(/\[\/?b\]/gi, '').slice(0, 300) || undefined,
+            imageUrl: peakProf?.imageUrl || m.images.webp?.large_image_url || m.images.jpg?.image_url,
+            description: peakProf?.bio || m.about?.replace(/\[\/?b\]/gi, '').slice(0, 300) || undefined,
             source: 'MyAnimeList',
             sourceUrl: m.url,
             popularityScore: m.favorites,
+            isUnrevealedApex: peakProf?.isUnrevealedApex,
+            unrevealedPowerReasoning: peakProf?.unrevealedPowerReasoning,
             raw: m,
           })
         })
@@ -252,17 +224,20 @@ export async function searchUniversalMultiverse(query: string, universeFilter: U
       searchWikipediaCharacter(query, targetUni).then((wikiItems) => {
         wikiItems.forEach((w) => {
           const cleanName = w.title.replace(/\s*\([^)]*\)/g, '')
+          const peakProf = getMangaPeakProfile(cleanName)
           const uni = universeFilter !== 'All' ? universeFilter : guessUniverseFromName(cleanName, w.description || w.extract)
           results.push({
-            id: `wiki-${cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-            name: cleanName,
-            series: w.description || `${uni} Universe`,
-            universe: uni,
-            imageUrl: w.originalimage?.source || w.thumbnail?.source,
-            description: w.extract.slice(0, 300),
+            id: peakProf ? `manga-${peakProf.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : `wiki-${cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+            name: peakProf?.name || cleanName,
+            series: w.description || peakProf?.series || `${uni} Universe`,
+            universe: peakProf?.universe || uni,
+            imageUrl: peakProf?.imageUrl || w.originalimage?.source || w.thumbnail?.source,
+            description: peakProf?.bio || w.extract.slice(0, 300),
             source: 'Wikipedia',
             sourceUrl: w.content_urls?.desktop?.page,
             popularityScore: 8000,
+            isUnrevealedApex: peakProf?.isUnrevealedApex,
+            unrevealedPowerReasoning: peakProf?.unrevealedPowerReasoning,
             raw: w,
           })
         })
@@ -287,27 +262,47 @@ export async function searchUniversalMultiverse(query: string, universeFilter: U
 }
 
 // ==========================================
-// 6. Canon Manga Power Scaling Engine
+// 6. Automatic Auto-Import Handler & Aliases
+// ==========================================
+
+/** Seamlessly converts search result into Citadel character & saves to localStorage */
+export function autoImportSearchResult(result: UniversalSearchResult): Character {
+  const converted = convertUniversalToCitadelCharacter(result)
+  saveCustomCharacter(converted)
+  return converted
+}
+
+/** Legacy MAL converter alias for backwards compatibility */
+export function convertMalToCitadelCharacter(malChar: MalCharacterResult): Character {
+  const universalResult: UniversalSearchResult = {
+    id: `mal-${malChar.mal_id}`,
+    name: malChar.name,
+    nativeName: malChar.name_kanji || undefined,
+    series: malChar.anime?.[0]?.anime?.title || 'Anime',
+    universe: 'Anime',
+    imageUrl: malChar.images.webp?.large_image_url || malChar.images.jpg?.image_url,
+    description: malChar.about?.replace(/\[\/?b\]/gi, '').slice(0, 300) || undefined,
+    source: 'MyAnimeList',
+    sourceUrl: malChar.url,
+    popularityScore: malChar.favorites,
+  }
+  return convertUniversalToCitadelCharacter(universalResult)
+}
+
+// ==========================================
+// 7. Canon Power Scaling Engine
 // ==========================================
 
 const COLOR_PALETTE = ['#E11D48', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#06B6D4', '#EAB308', '#EF4444']
 const GLYPHS: Character['emblemGlyph'][] = ['flame', 'bolt', 'shield', 'star', 'snowflake', 'atom', 'moon', 'sword', 'eye', 'dragon']
 
-/**
- * Calculates accurate canon stats based on verse cosmological tier and peak manga feats
- */
 export function synthesizeStats(name: string, series: string, bio: string): { stats: Stat[]; tier: PowerTier; pop: number } {
   const norm = (name + ' ' + series + ' ' + bio).toLowerCase()
 
-  // 1. Check if Godlike / Universal / Multiversal Tier (Dragon Ball Super, Gurren Lagann, Cosmic Marvel/DC, OPM Cosmic)
-  const isMultiversal = /dragon ball super|gurren lagann|thanos|superman|whis|zeno|anos|rimuru|anti-spiral|living tribunal/i.test(norm)
-  // 2. Check if Planetary / Moon Tier (One Punch Man Saitama/Garou, Naruto War Arc Six Paths, Bleach TYBW Peak)
-  const isPlanetary = /saitama|garou|kaguya|madara|hagoromo|ichigo|aizen|yhwach|boros|dragon ball z/i.test(norm)
-  // 3. Check if Continental / Island / Mountain Tier (One Piece Wano Peak, Black Clover, JJK Peak)
+  const isMultiversal = /dragon ball super|gurren lagann|thanos|superman|whis|zeno|anos|rimuru|anti-spiral|presence|beyonder|living tribunal/i.test(norm)
+  const isPlanetary = /saitama|garou|kaguya|madara|hagoromo|ichigo|aizen|yhwach|boros|dragon ball z|shanks|minato/i.test(norm)
   const isIslandTier = /one piece|luffy|zoro|kaido|shanks|whitebeard|gojo|sukuna|asta|lucifero|naruto shippuden/i.test(norm)
-  // 4. Check if Town / City-Block Tier (Hunter x Hunter, My Hero Academia, Tokyo Ghoul)
   const isCityBlockTier = /hunter x hunter|killua|gon|kurapika|hisoka|my hero academia|tokyo ghoul|chainsaw man|denji|makima/i.test(norm)
-  // 5. Check if Street / Building Tier (Attack on Titan, Demon Slayer, Jujutsu Grade 1)
   const isStreetTier = /demon slayer|tanjiro|muzan|yoriichi|attack on titan|levi|mikasa|eren/i.test(norm)
 
   let baseStr = 65
@@ -348,10 +343,9 @@ export function synthesizeStats(name: string, series: string, bio: string): { st
     tier = 'B'
   }
 
-  // Characteristic modifiers
-  const isSpeedster = /lightning|light speed|teleport|instant|blitz|supersonic|flash|godspeed|speed/i.test(norm)
-  const isGenius = /detective|scientist|genius|inventor|strategist|mastermind|sorcerer|batman|stark|zoldyck/i.test(norm)
-  const isMartial = /swordsman|ninja|pirate|samurai|martial|fighter|assassin|blade|kratos|zoro|hunter/i.test(norm)
+  const isSpeedster = /lightning|light speed|teleport|instant|blitz|supersonic|flash|godspeed|yellow flash|speed/i.test(norm)
+  const isGenius = /detective|scientist|genius|inventor|strategist|mastermind|sorcerer|batman|stark|zoldyck|hokage/i.test(norm)
+  const isMartial = /swordsman|ninja|pirate|samurai|martial|fighter|assassin|blade|kratos|zoro|hunter|shanks/i.test(norm)
 
   const speed = isSpeedster ? Math.min(98, baseSpd + 10) : baseSpd
   const strength = isMartial ? Math.min(99, baseStr + 4) : baseStr
@@ -364,8 +358,8 @@ export function synthesizeStats(name: string, series: string, bio: string): { st
   const pop = 90
 
   const stats: Stat[] = [
-    { key: 'strength', label: 'Strength', value: strength, reasoning: `Peak canonical physical striking force documented in ${series} manga lore.` },
-    { key: 'speed', label: 'Speed', value: speed, reasoning: `Combat velocity and reaction reflexes observed during canonical manga battles.` },
+    { key: 'strength', label: 'Strength', value: strength, reasoning: `Peak canonical physical striking force documented in ${series} lore.` },
+    { key: 'speed', label: 'Speed', value: speed, reasoning: `Combat velocity and reaction reflexes observed during canonical battles.` },
     { key: 'durability', label: 'Durability', value: durability, reasoning: `Armor density and trauma resistance against peer-tier attacks in ${series}.` },
     { key: 'attack_potency', label: 'Attack Potency', value: attack_potency, reasoning: `Destructive ceiling and ultimate technique potency in official ${series} canon.` },
     { key: 'intelligence', label: 'Intelligence', value: intelligence, reasoning: `Tactical battle acumen and problem-solving IQ under pressure.` },
@@ -377,9 +371,8 @@ export function synthesizeStats(name: string, series: string, bio: string): { st
   return { stats, tier, pop }
 }
 
-/** Convert UniversalSearchResult into a full Citadel Character with Canon Peak Manga Scaling */
+/** Convert UniversalSearchResult into a full Citadel Character with Canon Peak Scaling */
 export function convertUniversalToCitadelCharacter(result: UniversalSearchResult): Character {
-  // Check if we have a hand-verified peak manga profile first!
   const peakProfile = getMangaPeakProfile(result.name)
 
   if (peakProfile) {
@@ -404,8 +397,8 @@ export function convertUniversalToCitadelCharacter(result: UniversalSearchResult
       stats: peakProfile.stats,
       abilities: peakProfile.abilities,
       growth: [
-        { id: 'g1', label: 'Early Arc', note: `Debut in ${peakProfile.series}.` },
-        { id: 'g2', label: 'Peak Manga Potential', note: peakProfile.growthNotes || 'Full canonical peak state from the manga.' },
+        { id: 'g1', label: 'Debut Arc', note: `Debut in ${peakProfile.series}.` },
+        { id: 'g2', label: 'Peak Potential', note: peakProfile.growthNotes || 'Full canonical peak state.' },
       ],
       archive: peakProfile.mangaFeats,
       battleHistory: [
@@ -417,11 +410,12 @@ export function convertUniversalToCitadelCharacter(result: UniversalSearchResult
       quote: peakProfile.quote,
       voiceActor: peakProfile.voiceActor,
       sourceUrl: result.sourceUrl,
+      isUnrevealedApex: result.isUnrevealedApex || peakProfile.isUnrevealedApex,
+      unrevealedPowerReasoning: result.unrevealedPowerReasoning || peakProfile.unrevealedPowerReasoning,
       isCustom: true,
     }
   }
 
-  // Otherwise synthesize using verse-aware cosmological power scaling
   const bio = result.description || `${result.name} is an iconic champion from ${result.series}.`
   const { stats, tier, pop } = synthesizeStats(result.name, result.series, bio)
   const id = result.id || `custom-${result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
@@ -449,16 +443,16 @@ export function convertUniversalToCitadelCharacter(result: UniversalSearchResult
     abilities: [
       {
         id: `${id}-ab1`,
-        name: `${result.name}'s Peak Manga Arsenal`,
+        name: `${result.name}'s Signature Arsenal`,
         description: `Full potential fighting style and ultimate techniques from ${result.series}.`,
-        strengths: ['Apex execution at full manga potential', 'Tuned against canonical peer opponents'],
+        strengths: ['Apex execution at full potential', 'Tuned against canonical peer opponents'],
         weaknesses: ['Stamina budget in extended high-intensity combat'],
-        evidence: `Verified canonical records from ${result.series} manga.`,
+        evidence: `Verified canonical records from ${result.series}.`,
       },
     ],
     growth: [
       { id: 'g1', label: 'Debut Arc', note: `First appearance in ${result.series}.` },
-      { id: 'g2', label: 'Peak Manga Mastery', note: 'Maximum demonstrated combat potential.' },
+      { id: 'g2', label: 'Peak Mastery', note: 'Maximum demonstrated combat potential.' },
     ],
     archive: [
       {
@@ -477,39 +471,8 @@ export function convertUniversalToCitadelCharacter(result: UniversalSearchResult
     tier,
     quote: `“I fight at my absolute maximum potential!”`,
     sourceUrl: result.sourceUrl,
+    isUnrevealedApex: result.isUnrevealedApex,
+    unrevealedPowerReasoning: result.unrevealedPowerReasoning,
     isCustom: true,
   }
-}
-
-/** Legacy converters */
-export function convertMalToCitadelCharacter(mal: MalCharacterResult): Character {
-  return convertUniversalToCitadelCharacter({
-    id: `mal-${mal.mal_id}-${mal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-    name: mal.name,
-    nativeName: mal.name_kanji || undefined,
-    series: mal.anime?.[0]?.anime?.title || 'Anime',
-    universe: 'Anime',
-    imageUrl: mal.images.webp?.large_image_url || mal.images.webp?.image_url || mal.images.jpg?.image_url,
-    description: mal.about || undefined,
-    source: 'MyAnimeList',
-    sourceUrl: mal.url,
-    popularityScore: mal.favorites,
-    raw: mal,
-  })
-}
-
-export function convertWikiToCitadelCharacter(wiki: WikipediaSummaryResult, universe: Universe = 'Marvel'): Character {
-  const name = wiki.title.replace(/\s*\([^)]*\)/g, '')
-  return convertUniversalToCitadelCharacter({
-    id: `wiki-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-    name,
-    series: wiki.description || `${universe} Universe`,
-    universe,
-    imageUrl: wiki.originalimage?.source || wiki.thumbnail?.source,
-    description: wiki.extract,
-    source: 'Wikipedia',
-    sourceUrl: wiki.content_urls?.desktop?.page,
-    popularityScore: 8000,
-    raw: wiki,
-  })
 }

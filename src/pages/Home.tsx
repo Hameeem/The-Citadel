@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Swords, Compass, Trophy, Sparkles, Shield, Flame, Zap, ArrowRight, Star, RefreshCw } from 'lucide-react'
+import { Swords, Compass, Trophy, Sparkles, Shield, Flame, Zap, ArrowRight, Star, RefreshCw, Eye } from 'lucide-react'
 import { useAllCharacters } from '../lib/citadelStore'
 import CharacterCard from '../components/CharacterCard'
 import FeaturedBattle from '../components/FeaturedBattle'
@@ -71,7 +71,7 @@ const DISTRICTS: { key: Universe; color: string; desc: string; icon: string; bgI
 
 const FEATURED_MATCHUPS: [string, string][] = [
   ['son-goku', 'superman'],
-  ['monkey-d-luffy', 'naruto-uzumaki'],
+  ['shanks', 'roronoa-zoro'],
   ['gojo-satoru', 'scarlet-witch'],
 ]
 
@@ -99,6 +99,7 @@ export default function Home() {
   }, [])
 
   const trending = [...characters].sort((a, b) => b.popularity - a.popularity)
+  const unrevealedApexList = characters.filter((c) => c.isUnrevealedApex)
 
   const handleImportSpotlight = (malChar: MalCharacterResult) => {
     sound.playVictory()
@@ -206,14 +207,45 @@ export default function Home() {
               <div className="text-[10px] font-head tracking-[0.2em] text-ink-low uppercase mt-0.5">Multiverse Districts</div>
             </div>
             <div className="text-center">
-              <div className="font-display text-2xl sm:text-3xl text-blue-bright font-bold">100%</div>
-              <div className="text-[10px] font-head tracking-[0.2em] text-ink-low uppercase mt-0.5">Canon Evidence</div>
+              <div className="font-display text-2xl sm:text-3xl text-amber-300 font-bold">{unrevealedApexList.length}</div>
+              <div className="text-[10px] font-head tracking-[0.2em] text-ink-low uppercase mt-0.5">Unrevealed Apex Titans</div>
             </div>
             <div className="text-center">
               <div className="font-display text-2xl sm:text-3xl text-crimson-bright font-bold">MAL + AI</div>
               <div className="text-[10px] font-head tracking-[0.2em] text-ink-low uppercase mt-0.5">Live Sync Engines</div>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* SPECIAL FEATURE: ENIGMATIC TITANS (UNREVEALED APEX POWER) */}
+      <section className="max-w-7xl mx-auto px-6 py-10">
+        <div className="glass-card rounded-3xl p-8 border border-amber-500/40 relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-void to-purple/20">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2 text-amber-400 text-xs font-head tracking-[0.25em] font-bold">
+                <Flame className="w-4 h-4 text-amber-400 animate-pulse" /> ENIGMATIC TITANS ARCHIVE
+              </div>
+              <h2 className="font-display text-3xl font-bold text-ink-hi mt-1">
+                Unrevealed Apex Power Legends
+              </h2>
+              <p className="text-ink-mid text-sm mt-1 max-w-2xl">
+                Icons whose true full potential, supreme feats, or complete backstories remain shrouded in canonical mystery—like Shanks, Minato, The Beyonder, and Lucifer.
+              </p>
+            </div>
+            <Link
+              to="/characters?filter=apex"
+              className="px-5 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 font-head text-xs font-bold transition-all shrink-0 flex items-center gap-2"
+            >
+              <Eye className="w-4 h-4" /> Filter Apex Titans ({unrevealedApexList.length}) →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {unrevealedApexList.slice(0, 3).map((c, i) => (
+              <CharacterCard key={c.id} character={c} index={i} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -311,70 +343,6 @@ export default function Home() {
           })}
         </div>
       </section>
-
-      {/* LIVE MYANIMELIST SPOTLIGHT */}
-      {malSpotlight.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 py-12">
-          <div className="glass-card rounded-3xl p-8 border border-blue/40 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-72 h-72 bg-blue/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-blue-bright text-xs font-head tracking-[0.2em] font-bold">
-                  <Sparkles className="w-4 h-4" /> LIVE MYANIMELIST REPOSITORY
-                </div>
-                <h2 className="font-display text-2xl font-bold text-ink-hi mt-1">Trending Anime Champions (MAL)</h2>
-                <p className="text-sm text-ink-mid mt-0.5">
-                  Synchronized live from MyAnimeList API — 1-click import into Citadel database.
-                </p>
-              </div>
-              <Link
-                to="/research"
-                className="px-4 py-2 rounded-xl bg-blue/20 hover:bg-blue/30 border border-blue/40 font-head text-xs font-bold text-blue-bright transition-all flex items-center gap-1.5"
-              >
-                Open Live Explorer →
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {malSpotlight.map((mal) => {
-                const img = mal.images.webp?.large_image_url || mal.images.jpg?.image_url
-                const animeName = mal.anime?.[0]?.anime?.title || 'Anime'
-                return (
-                  <div
-                    key={mal.mal_id}
-                    className="glass rounded-2xl p-4 border border-white/5 hover:border-blue/50 transition-all flex flex-col justify-between group"
-                  >
-                    <div>
-                      <div className="aspect-[4/5] rounded-xl overflow-hidden glass mb-3 relative">
-                        {img && (
-                          <img
-                            src={img}
-                            alt={mal.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        )}
-                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-void/80 backdrop-blur-md text-[10px] font-mono text-purple-bright font-bold">
-                          ★ {mal.favorites.toLocaleString()}
-                        </div>
-                      </div>
-                      <h4 className="font-head text-base font-bold text-ink-hi truncate">{mal.name}</h4>
-                      <p className="text-xs text-ink-mid truncate">{animeName}</p>
-                    </div>
-
-                    <button
-                      onClick={() => handleImportSpotlight(mal)}
-                      className="mt-4 w-full py-2 rounded-xl bg-gradient-to-r from-blue to-purple text-void font-head font-bold text-xs hover:scale-102 transition-transform shadow-glow-blue flex items-center justify-center gap-1"
-                    >
-                      <span>⚡ Import & Battle</span>
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* TRENDING LEGENDS GALLERY */}
       <section className="max-w-7xl mx-auto px-6 py-12">

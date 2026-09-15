@@ -89,10 +89,14 @@ export interface Character {
   primarySource?: PrimarySourceInfo
   adaptationMedia?: AdaptationMediaInfo
 
+  // Unrevealed Apex Legend Metadata (Characters whose full story/power is shrouded in mystery)
+  isUnrevealedApex?: boolean
+  unrevealedPowerReasoning?: string
+
   // Enhanced media & metadata properties
-  imageUrl?: string // High-resolution portrait / character render (Pinterest / official art)
+  imageUrl?: string // High-resolution portrait / character render
   bannerUrl?: string // Wide cinematic wallpaper / arena background
-  galleryImages?: string[] // Alternate Pinterest / aesthetic art renders
+  galleryImages?: string[] // Alternate art renders
   japaneseName?: string // Kanji/Katakana for Anime characters
   tier?: PowerTier // Power tier (SSS, SS, S, A, B)
   voiceActor?: string // Japanese/English voice actor

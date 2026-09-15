@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Search, Sparkles, Filter, Grid, List, Plus, Vote, Trophy, ArrowRight, Loader2 } from 'lucide-react'
+import { Search, Sparkles, Filter, Grid, List, Plus, Vote, Trophy, ArrowRight, Loader2, Flame } from 'lucide-react'
 import { useAllCharacters, getMatchupVotes, voteMatchup } from '../lib/citadelStore'
 import CharacterCard from '../components/CharacterCard'
 import Emblem from '../components/Emblem'
@@ -25,7 +25,7 @@ const TIER_FILTERS: Array<PowerTier | 'All'> = ['All', 'SSS', 'SS', 'S', 'A', 'B
 
 const MATCHUPS: [string, string][] = [
   ['son-goku', 'superman'],
-  ['monkey-d-luffy', 'naruto-uzumaki'],
+  ['shanks', 'roronoa-zoro'],
   ['gojo-satoru', 'scarlet-witch'],
   ['kratos', 'thor-odinson'],
 ]
@@ -33,10 +33,12 @@ const MATCHUPS: [string, string][] = [
 export default function Characters() {
   const [searchParams] = useSearchParams()
   const initialUniverse = (searchParams.get('universe') as Universe) || 'All'
+  const initialFilter = searchParams.get('filter')
   const { characters, addCharacter } = useAllCharacters()
 
   const [universeFilter, setUniverseFilter] = useState<Universe | 'All'>(initialUniverse)
   const [tierFilter, setTierFilter] = useState<PowerTier | 'All'>('All')
+  const [onlyApex, setOnlyApex] = useState<boolean>(initialFilter === 'apex')
   const [query, setQuery] = useState(searchParams.get('q') ?? '')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [malResults, setMalResults] = useState<MalCharacterResult[]>([])
@@ -48,13 +50,14 @@ export default function Characters() {
     return characters
       .filter((c) => universeFilter === 'All' || c.universe === universeFilter)
       .filter((c) => tierFilter === 'All' || (c.tier || 'S') === tierFilter)
+      .filter((c) => !onlyApex || c.isUnrevealedApex)
       .filter(
         (c) =>
           c.name.toLowerCase().includes(query.toLowerCase()) ||
           c.series.toLowerCase().includes(query.toLowerCase()) ||
           (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(query.toLowerCase())))
       )
-  }, [characters, universeFilter, tierFilter, query])
+  }, [characters, universeFilter, tierFilter, onlyApex, query])
 
   const ranked = useMemo(() => [...characters].sort((a, b) => b.popularity - a.popularity), [characters])
 
@@ -160,25 +163,42 @@ export default function Characters() {
               ))}
             </div>
 
-            {/* Power Tier Filter Tabs */}
-            <div className="flex gap-2 flex-wrap items-center">
-              <span className="text-[10px] font-head tracking-wider text-ink-low uppercase mr-1">Tier:</span>
-              {TIER_FILTERS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => {
-                    sound.playClick()
-                    setTierFilter(t)
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-display transition-all ${
-                    tierFilter === t
-                      ? 'bg-purple-bright text-void font-extrabold shadow-glow'
-                      : 'glass text-ink-mid hover:text-ink-hi'
-                  }`}
-                >
-                  {t === 'All' ? 'ALL TIERS' : `${t}-TIER`}
-                </button>
-              ))}
+            {/* Power Tier Filter Tabs + Unrevealed Apex Toggle */}
+            <div className="flex gap-2 flex-wrap items-center justify-between">
+              <div className="flex gap-2 flex-wrap items-center">
+                <span className="text-[10px] font-head tracking-wider text-ink-low uppercase mr-1">Tier:</span>
+                {TIER_FILTERS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      sound.playClick()
+                      setTierFilter(t)
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-display transition-all ${
+                      tierFilter === t
+                        ? 'bg-purple-bright text-void font-extrabold shadow-glow'
+                        : 'glass text-ink-mid hover:text-ink-hi'
+                    }`}
+                  >
+                    {t === 'All' ? 'ALL TIERS' : `${t}-TIER`}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => {
+                  sound.playClick()
+                  setOnlyApex(!onlyApex)
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-head font-bold transition-all flex items-center gap-1.5 ${
+                  onlyApex
+                    ? 'bg-amber-500 text-void shadow-glow-amber'
+                    : 'glass border border-amber-500/40 text-amber-300 hover:bg-amber-500/10'
+                }`}
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
+                Unrevealed Apex Power {onlyApex ? '(Active)' : ''}
+              </button>
             </div>
           </div>
 
@@ -226,8 +246,13 @@ export default function Characters() {
                     <div className="flex items-center gap-4 min-w-0">
                       <Emblem character={c} size={48} />
                       <div className="min-w-0">
-                        <div className="font-head text-base font-bold text-ink-hi group-hover:text-purple-bright transition-colors truncate">
-                          {c.name}
+                        <div className="font-head text-base font-bold text-ink-hi group-hover:text-purple-bright transition-colors truncate flex items-center gap-2">
+                          <span>{c.name}</span>
+                          {c.isUnrevealedApex && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                              <Flame className="w-2.5 h-2.5 text-amber-400" /> APEX
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-ink-low truncate">
                           {c.universe} · {c.series}
