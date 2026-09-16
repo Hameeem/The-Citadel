@@ -17,18 +17,20 @@ import {
   ExternalLink,
   BookOpen,
   Film,
+  Search,
 } from 'lucide-react'
 import { useAllCharacters } from '../lib/citadelStore'
 import type { Character } from '../types/character'
-import { analyzeBattle, simulateFight } from '../lib/battleAnalysis'
+import { analyzeBattle, simulateFight, type BattleAnalysis } from '../lib/battleAnalysis'
 import Emblem from '../components/Emblem'
 import FeaturedBattle from '../components/FeaturedBattle'
+import ArenaSelectorModal from '../components/ArenaSelectorModal'
 import { sound } from '../lib/soundFx'
 
 const QUICK_MATCHUPS: [string, string][] = [
-  ['monkey-d-luffy', 'roronoa-zoro'],
-  ['the-one-above-all', 'iron-man'],
-  ['killua-zoldyck', 'roronoa-zoro'],
+  ['shanks', 'roronoa-zoro'],
+  ['son-goku', 'superman'],
+  ['minato', 'killua-zoldyck'],
 ]
 
 const ARENA_STAGES = [
@@ -42,12 +44,15 @@ export default function Arena() {
   const [searchParams] = useSearchParams()
   const { characters } = useAllCharacters()
 
-  const defaultA = searchParams.get('a') || 'killua-zoldyck'
+  const defaultA = searchParams.get('a') || 'shanks'
   const defaultB = searchParams.get('b') || 'roronoa-zoro'
 
   const [aId, setAId] = useState<string>(characters.find((c) => c.id === defaultA)?.id || characters[0]?.id || '')
   const [bId, setBId] = useState<string>(characters.find((c) => c.id === defaultB)?.id || characters[1]?.id || '')
   const [selectedStage, setSelectedStage] = useState(ARENA_STAGES[0])
+
+  // Fighter selection modals
+  const [activeModalSide, setActiveModalSide] = useState<'ALPHA' | 'BETA' | null>(null)
 
   // Battle simulator phases
   const [phase, setPhase] = useState<'select' | 'battling' | 'result'>('select')
@@ -121,7 +126,7 @@ export default function Arena() {
       {/* QUICK MATCHUPS */}
       <div className="mb-10">
         <div className="text-[10px] font-head tracking-[0.25em] text-ink-low mb-3 text-center uppercase font-bold">
-          QUICK MATCHUPS
+          FEATURED CANON MATCHUPS
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {QUICK_MATCHUPS.map(([x, y]) => {
@@ -167,6 +172,7 @@ export default function Arena() {
           side="ALPHA"
           selected={a}
           exclude={b.id}
+          onOpenModal={() => setActiveModalSide('ALPHA')}
           onSelect={(id) => pick('a', id)}
           characters={characters}
           hp={hpA}
@@ -176,6 +182,7 @@ export default function Arena() {
           side="BETA"
           selected={b}
           exclude={a.id}
+          onOpenModal={() => setActiveModalSide('BETA')}
           onSelect={(id) => pick('b', id)}
           characters={characters}
           hp={hpB}
@@ -237,6 +244,20 @@ export default function Arena() {
           }}
         />
       )}
+
+      {/* Hero Selector Modal */}
+      <ArenaSelectorModal
+        isOpen={activeModalSide !== null}
+        onClose={() => setActiveModalSide(null)}
+        sideTitle={activeModalSide === 'ALPHA' ? 'FIGHTER ALPHA' : 'FIGHTER BETA'}
+        selectedId={activeModalSide === 'ALPHA' ? a.id : b.id}
+        excludeId={activeModalSide === 'ALPHA' ? b.id : a.id}
+        characters={characters}
+        onSelect={(id) => {
+          if (activeModalSide === 'ALPHA') pick('a', id)
+          else pick('b', id)
+        }}
+      />
     </div>
   )
 }
@@ -245,6 +266,7 @@ function FighterSlot({
   side,
   selected,
   exclude,
+  onOpenModal,
   onSelect,
   characters,
   hp,
@@ -253,6 +275,7 @@ function FighterSlot({
   side: string
   selected: Character
   exclude: string
+  onOpenModal: () => void
   onSelect: (id: string) => void
   characters: Character[]
   hp: number
@@ -261,14 +284,16 @@ function FighterSlot({
   const tier = selected.tier || 'S'
   return (
     <div
-      className="glass-card rounded-3xl p-6 flex flex-col items-center text-center relative overflow-hidden border border-white/10"
+      className="glass-card rounded-3xl p-6 flex flex-col items-center text-center relative overflow-hidden border border-white/10 group"
       style={{ boxShadow: `0 0 35px ${color}22` }}
     >
       <div className="text-[10px] font-head font-bold tracking-[0.2em] text-ink-low mb-4 uppercase">
         FIGHTER {side} · {tier}-TIER
       </div>
 
-      <Emblem character={selected} size={110} />
+      <div onClick={onOpenModal} className="cursor-pointer transition-transform group-hover:scale-105">
+        <Emblem character={selected} size={110} />
+      </div>
 
       <h3 className="font-head text-xl font-bold text-ink-hi mt-3 line-clamp-1">{selected.name}</h3>
       <p className="text-xs text-ink-mid">
@@ -291,15 +316,23 @@ function FighterSlot({
         </div>
       </div>
 
-      {/* Selector Dropdown */}
+      {/* Open Full Multiverse Registry Modal Button */}
+      <button
+        onClick={onOpenModal}
+        className="mt-4 w-full py-2.5 px-4 rounded-xl glass border border-purple/40 hover:border-purple text-ink-hi font-head font-bold text-xs flex items-center justify-center gap-2 hover:glow-ring transition-all"
+      >
+        <Search className="w-3.5 h-3.5 text-purple-bright" /> Select From All 50+ {selected.universe} Heroes
+      </button>
+
+      {/* Selector Quick Dropdown */}
       <select
         value={selected.id}
         onChange={(e) => onSelect(e.target.value)}
-        className="mt-4 w-full px-3 py-2 rounded-xl glass text-xs font-head font-bold text-ink-hi focus:outline-none focus:glow-ring bg-panel cursor-pointer"
+        className="mt-2 w-full px-3 py-2 rounded-xl glass text-xs font-head font-bold text-ink-hi focus:outline-none focus:glow-ring bg-panel cursor-pointer opacity-80"
       >
         {characters.map((c) => (
-          <option key={c.id} value={c.id} disabled={c.id === exclude} className="bg-panel">
-            {c.name} ({c.universe})
+          <option key={c.id} value={c.id} disabled={c.id === exclude} className="bg-void text-ink-hi">
+            {c.name} ({c.universe} · {c.tier || 'S'}-TIER)
           </option>
         ))}
       </select>
@@ -316,171 +349,114 @@ function VerdictPanel({
 }: {
   a: Character
   b: Character
-  analysis: ReturnType<typeof analyzeBattle>
-  narrative: ReturnType<typeof simulateFight>
+  analysis: BattleAnalysis
+  narrative: Array<{ title: string; text: string }>
   onReset: () => void
 }) {
-  const bProb = 100 - analysis.winProbabilityA
-  const favoredChar = analysis.favored === 'a' ? a : analysis.favored === 'b' ? b : null
+  const winner = analysis.winProbabilityA >= 50 ? a : b
+  const winPct = analysis.winProbabilityA >= 50 ? analysis.winProbabilityA : 100 - analysis.winProbabilityA
 
   return (
-    <div className="space-y-8">
-      {/* VERDICT BANNER */}
-      <div className="glass-card rounded-3xl p-8 border border-purple/40 text-center relative overflow-hidden">
-        <div className="text-[10px] font-head font-bold tracking-[0.3em] text-ink-low uppercase mb-2">
-          DECISIVE TACTICAL VERDICT
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="glass-card rounded-3xl p-8 border border-purple/40 space-y-8"
+    >
+      {/* Winner Spotlight Banner */}
+      <div className="text-center relative py-6 border-b border-white/10">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-purple/20 border border-amber-400/40 text-amber-300 text-xs font-head font-bold tracking-widest mb-4">
+          <Trophy className="w-4 h-4 text-amber-400" /> CANONICAL COMBAT VERDICT
         </div>
-        <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink-hi">
-          {favoredChar ? (
-            <>
-              <span className="text-gradient">{favoredChar.name}</span> VICTORIOUS
-            </>
-          ) : (
-            <span className="text-purple-bright">DEAD EVEN / STALEMATE</span>
-          )}
+        <h2 className="font-display text-4xl sm:text-5xl font-black text-gradient">
+          VICTOR: {winner.name.toUpperCase()}
         </h2>
+        <p className="font-head text-lg text-purple-bright font-semibold mt-2">
+          Calculated Win Probability: {winPct}% · Classification: {analysis.difficulty}
+        </p>
 
-        {/* Win rate probability bar */}
-        <div className="max-w-xl mx-auto mt-6">
-          <div className="flex justify-between text-xs font-mono mb-2 font-bold">
-            <span className="text-purple-bright">
-              {a.name}: {analysis.winProbabilityA}%
-            </span>
-            <span className="text-blue-bright">
-              {b.name}: {bProb}%
-            </span>
+        {/* Win percentage bar */}
+        <div className="max-w-md mx-auto mt-5">
+          <div className="flex justify-between text-xs font-mono mb-1 font-bold">
+            <span style={{ color: a.emblemColor }}>{a.name}: {analysis.winProbabilityA}%</span>
+            <span style={{ color: b.emblemColor }}>{b.name}: {100 - analysis.winProbabilityA}%</span>
           </div>
-          <div className="h-4 rounded-full overflow-hidden flex bg-white/5 p-0.5">
-            <div
-              className="bg-gradient-to-r from-purple-deep to-purple h-full rounded-l-full flex items-center justify-end pr-2 transition-all duration-700"
-              style={{ width: `${analysis.winProbabilityA}%` }}
-            >
-              <span className="text-[10px] font-mono text-void font-bold">{analysis.winProbabilityA}%</span>
-            </div>
-            <div
-              className="bg-gradient-to-l from-blue to-blue-bright h-full rounded-r-full flex items-center justify-start pl-2 transition-all duration-700"
-              style={{ width: `${bProb}%` }}
-            >
-              <span className="text-[10px] font-mono text-void font-bold">{bProb}%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-center gap-8 mt-6">
-          <Badge label="Confidence Index" value={analysis.confidence} />
-          <Badge label="Combat Difficulty" value={analysis.difficulty} />
-        </div>
-      </div>
-
-      {/* DUAL-CANON EVALUATION BREAKDOWN */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Manga / Comic Source Canon Verdict */}
-        <div className="glass-card rounded-3xl p-6 border border-purple/40 relative overflow-hidden">
-          <div className="flex items-center gap-2 text-xs font-head font-bold text-purple-bright tracking-wider uppercase mb-3">
-            <BookOpen className="w-4 h-4" /> 📖 ORIGINAL SOURCE CANON (MANGA & COMICS)
-          </div>
-          <h3 className="font-head text-lg font-bold text-ink-hi mb-2">
-            {analysis.mangaComicVerdict.title}
-          </h3>
-          <p className="text-xs text-ink-mid leading-relaxed mb-4">
-            {analysis.mangaComicVerdict.summary}
-          </p>
-          <div className="space-y-2 pt-3 border-t border-white/5 text-xs">
-            <div className="p-2.5 rounded-xl bg-white/5">
-              <span className="font-bold text-purple-bright">{a.name} Peak Feat:</span> {analysis.mangaComicVerdict.sourceA}
-            </div>
-            <div className="p-2.5 rounded-xl bg-white/5">
-              <span className="font-bold text-blue-bright">{b.name} Peak Feat:</span> {analysis.mangaComicVerdict.sourceB}
-            </div>
-          </div>
-        </div>
-
-        {/* Media Adaptation / Anime / Movie Verdict */}
-        <div className="glass-card rounded-3xl p-6 border border-blue/40 relative overflow-hidden">
-          <div className="flex items-center gap-2 text-xs font-head font-bold text-blue-bright tracking-wider uppercase mb-3">
-            <Film className="w-4 h-4" /> 🎬 MEDIA ADAPTATION (ANIME & MOVIES)
-          </div>
-          <h3 className="font-head text-lg font-bold text-ink-hi mb-2">
-            {analysis.mediaAdaptationVerdict.title}
-          </h3>
-          <p className="text-xs text-ink-mid leading-relaxed mb-4">
-            {analysis.mediaAdaptationVerdict.summary}
-          </p>
-          <div className="space-y-2 pt-3 border-t border-white/5 text-xs">
-            <div className="p-2.5 rounded-xl bg-white/5">
-              <span className="font-bold text-purple-bright">{a.name} Screen Feat:</span> {analysis.mediaAdaptationVerdict.adaptationA}
-            </div>
-            <div className="p-2.5 rounded-xl bg-white/5">
-              <span className="font-bold text-blue-bright">{b.name} Screen Feat:</span> {analysis.mediaAdaptationVerdict.adaptationB}
-            </div>
+          <div className="h-3 rounded-full overflow-hidden flex bg-white/5 p-0.5">
+            <div className="h-full rounded-l-full transition-all" style={{ width: `${analysis.winProbabilityA}%`, background: a.emblemColor }} />
+            <div className="h-full rounded-r-full transition-all" style={{ width: `${100 - analysis.winProbabilityA}%`, background: b.emblemColor }} />
           </div>
         </div>
       </div>
 
-      {/* DECISIVE FACTORS & REASONING */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="glass rounded-3xl p-6 border border-white/10">
-          <h3 className="font-head font-bold text-lg text-ink-hi mb-4 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-purple-bright" /> Key Deciding Factors
-          </h3>
-          <ul className="space-y-3">
-            {analysis.keyFactors.map((f) => (
-              <li key={f.key} className="text-sm text-ink-mid flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-purple-bright shrink-0 mt-1.5" />
-                <span>
-                  <strong className="text-ink-hi">{f.label}:</strong> {f.note}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="glass rounded-3xl p-6 border border-white/10">
-          <h3 className="font-head font-bold text-lg text-ink-hi mb-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-blue-bright" /> Alternative Underdog Scenario
-          </h3>
-          <p className="text-sm text-ink-mid leading-relaxed">
-            {analysis.alternativeScenario
-              ? analysis.alternativeScenario.note
-              : 'Both combatants are tightly matched in core physical and tactical categories. A decisive first-strike could swing the entire outcome.'}
-          </p>
-        </div>
-      </div>
-
-      {/* FULL 5-BEAT FIGHT TIMELINE */}
-      <div className="glass-card rounded-3xl p-8 border border-white/10">
-        <h3 className="font-head font-bold text-xl text-ink-hi mb-6 flex items-center gap-2">
-          <Swords className="w-5 h-5 text-purple-bright" /> Detailed 5-Beat Combat Log
+      {/* Decisive Analysis Factors */}
+      <div>
+        <h3 className="font-head text-base font-bold text-ink-hi flex items-center gap-2 mb-3">
+          <Zap className="w-4 h-4 text-purple-bright" /> Decisive Battle Factors & Key Stat Disparities
         </h3>
-        <div className="relative pl-6 space-y-6 border-l border-purple/40">
-          {narrative.map((beat) => (
-            <div key={beat.id} className="relative">
-              <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-gradient-to-r from-purple to-blue border-2 border-void" />
-              <h4 className="font-head font-bold text-base text-ink-hi">{beat.title}</h4>
-              <p className="text-sm text-ink-mid mt-1 leading-relaxed">{beat.text}</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {analysis.keyFactors.map((factor, i) => (
+            <div key={i} className="glass rounded-2xl p-4 border border-white/5">
+              <div className="text-xs font-head font-bold text-ink-hi mb-1 flex items-center justify-between">
+                <span>{factor.label} Advantage</span>
+                <span className="text-purple-bright uppercase text-[10px] font-mono">
+                  {factor.winner === 'a' ? a.name : factor.winner === 'b' ? b.name : 'EVEN'} (+{factor.gap})
+                </span>
+              </div>
+              <p className="text-xs text-ink-mid leading-relaxed">{factor.note}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Reset Button */}
+      {/* Dual-Canon Source Comparison (Manga/Comic vs Anime/Movie) */}
+      <div className="glass rounded-2xl p-6 border border-white/10 space-y-4">
+        <h3 className="font-head text-base font-bold text-ink-hi flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-blue-bright" /> Dual-Canon Source Verdict Breakdown
+        </h3>
+
+        <div className="grid sm:grid-cols-2 gap-4 text-xs">
+          <div className="glass rounded-xl p-4 border border-purple/30">
+            <div className="font-head font-bold text-purple-bright flex items-center gap-1.5 mb-1">
+              <BookOpen className="w-3.5 h-3.5" /> {analysis.mangaComicVerdict.title}
+            </div>
+            <p className="text-ink-mid leading-relaxed">{analysis.mangaComicVerdict.summary}</p>
+          </div>
+
+          <div className="glass rounded-xl p-4 border border-blue/30">
+            <div className="font-head font-bold text-blue-bright flex items-center gap-1.5 mb-1">
+              <Film className="w-3.5 h-3.5" /> {analysis.mediaAdaptationVerdict.title}
+            </div>
+            <p className="text-ink-mid leading-relaxed">{analysis.mediaAdaptationVerdict.summary}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Fight Log Breakdown */}
+      <div>
+        <h3 className="font-head text-base font-bold text-ink-hi flex items-center gap-2 mb-3">
+          <Shield className="w-4 h-4 text-crimson-bright" /> Full 5-Beat Combat Log
+        </h3>
+        <div className="space-y-3">
+          {narrative.map((beat, i) => (
+            <div key={i} className="glass rounded-xl p-4 border border-white/5">
+              <div className="text-xs font-head font-bold text-purple-bright">
+                BEAT {i + 1}: {beat.title}
+              </div>
+              <p className="text-xs text-ink-mid mt-1 leading-relaxed">{beat.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Reset CTA */}
       <div className="text-center pt-4">
         <button
           onClick={onReset}
-          className="px-6 py-2.5 rounded-full glass hover:border-purple/50 font-head font-bold text-xs tracking-wider text-ink-hi transition-all flex items-center gap-2 mx-auto"
+          className="px-8 py-3.5 rounded-full glass border border-purple/50 font-head font-bold text-sm text-ink-hi hover:glow-ring inline-flex items-center gap-2"
         >
-          <RotateCcw className="w-3.5 h-3.5" /> RUN ANOTHER MATCHUP
+          <RotateCcw className="w-4 h-4" /> RESET & CONFIGURE NEW CLASH
         </button>
       </div>
-    </div>
-  )
-}
-
-function Badge({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="glass rounded-2xl px-4 py-2 border border-white/5 text-center">
-      <div className="text-[10px] font-head tracking-wider text-ink-low uppercase">{label}</div>
-      <div className="font-head text-sm font-bold text-ink-hi mt-0.5">{value}</div>
-    </div>
+    </motion.div>
   )
 }

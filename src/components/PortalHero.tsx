@@ -1,27 +1,62 @@
 import { motion } from 'framer-motion'
 
 /**
- * The Citadel's portal — an animated wormhole built entirely from CSS/SVG
- * gradients and rotation, no imagery. This is the centerpiece the districts
- * "open out of" on the landing page.
+ * The Citadel's Blackhole Wormhole Portal.
+ * Features an event horizon singularity, multi-layered counter-rotating accretion disks,
+ * gravitational light distortion, and continuous 360-degree rotation.
  */
 export default function PortalHero() {
   return (
-    <div className="relative w-full flex items-center justify-center pointer-events-none select-none">
-      <div className="relative" style={{ width: 560, height: 560 }}>
-        {/* outer drifting glow */}
+    <div className="relative w-full flex items-center justify-center pointer-events-none select-none my-4">
+      <div className="relative" style={{ width: 640, height: 640 }}>
+        {/* Outer Gravitational Lensing Glow */}
         <motion.div
           className="absolute inset-0 rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.18), transparent 65%)' }}
-          animate={{ scale: [1, 1.08, 1] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            background:
+              'radial-gradient(circle, rgba(139,92,246,0.25) 0%, rgba(59,130,246,0.15) 45%, rgba(234,179,8,0.05) 65%, transparent 80%)',
+            filter: 'blur(35px)',
+          }}
+          animate={{ scale: [0.95, 1.1, 0.95], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         />
 
-        {/* rotating ring layers */}
+        {/* Counter-Rotating Accretion Spiral Ring 1 (Outer Cosmic Fire) */}
+        <motion.div
+          className="absolute inset-0 m-auto rounded-full"
+          style={{
+            width: 580,
+            height: 580,
+            background:
+              'conic-gradient(from 0deg, transparent 0%, rgba(234,179,8,0.7) 20%, rgba(225,29,72,0.8) 45%, rgba(139,92,246,0.9) 70%, transparent 100%)',
+            filter: 'blur(16px)',
+            opacity: 0.65,
+          }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
+        />
+
+        {/* Counter-Rotating Accretion Spiral Ring 2 (Inner High-Energy Plasma) */}
+        <motion.div
+          className="absolute inset-0 m-auto rounded-full"
+          style={{
+            width: 480,
+            height: 480,
+            background:
+              'conic-gradient(from 180deg, transparent 0%, rgba(56,189,248,0.9) 25%, rgba(139,92,246,0.9) 60%, rgba(244,63,94,0.8) 85%, transparent 100%)',
+            filter: 'blur(12px)',
+            opacity: 0.75,
+          }}
+          animate={{ rotate: -360 }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
+        />
+
+        {/* Gravitational Distortion Arc Lines (Rotating SVG Orbitals) */}
         {[
-          { size: 560, color: '#8B5CF6', duration: 40, opacity: 0.35, dash: '2 14' },
-          { size: 460, color: '#3B82F6', duration: 30, opacity: 0.45, dash: '1 10', reverse: true },
-          { size: 360, color: '#E11D48', duration: 22, opacity: 0.4, dash: '3 8' },
+          { size: 540, color: '#F59E0B', duration: 32, dash: '8 16 3 12', strokeWidth: 1.5 },
+          { size: 440, color: '#8B5CF6', duration: 20, dash: '12 8 4 20', reverse: true, strokeWidth: 2 },
+          { size: 340, color: '#38BDF8', duration: 14, dash: '4 12 18 6', strokeWidth: 2.5 },
+          { size: 260, color: '#EC4899', duration: 10, dash: '2 8 2 8', reverse: true, strokeWidth: 3 },
         ].map((ring, i) => (
           <motion.svg
             key={i}
@@ -32,56 +67,84 @@ export default function PortalHero() {
             transition={{ duration: ring.duration, repeat: Infinity, ease: 'linear' }}
           >
             <circle
-              cx="50" cy="50" r="46"
+              cx="50"
+              cy="50"
+              r="46"
               fill="none"
               stroke={ring.color}
-              strokeWidth="0.6"
+              strokeWidth={ring.strokeWidth}
               strokeDasharray={ring.dash}
-              opacity={ring.opacity}
+              opacity={0.65}
             />
           </motion.svg>
         ))}
 
-        {/* accretion glow band */}
+        {/* Dense Event Horizon Inner Photon Sphere Glow */}
         <motion.div
           className="absolute inset-0 m-auto rounded-full"
           style={{
-            width: 260,
-            height: 260,
-            background: 'conic-gradient(from 0deg, #8B5CF6, #3B82F6, #E11D48, #8B5CF6)',
-            filter: 'blur(30px)',
-            opacity: 0.55,
+            width: 240,
+            height: 240,
+            background: 'conic-gradient(from 45deg, #FFFFFF, #F59E0B, #8B5CF6, #38BDF8, #FFFFFF)',
+            filter: 'blur(20px)',
           }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+          animate={{ rotate: 360, scale: [1, 1.05, 1] }}
+          transition={{ rotate: { duration: 8, repeat: Infinity, ease: 'linear' }, scale: { duration: 3, repeat: Infinity, ease: 'easeInOut' } }}
         />
 
-        {/* event horizon core */}
+        {/* PURE BLACK HOLE SINGULARITY CORE */}
         <div
           className="absolute inset-0 m-auto rounded-full"
           style={{
-            width: 190,
-            height: 190,
-            background: 'radial-gradient(circle at 50% 50%, #0A0714 0%, #05040A 55%, #05040A 100%)',
-            boxShadow: '0 0 80px 20px rgba(139,92,246,0.35), inset 0 0 40px rgba(0,0,0,0.9)',
+            width: 170,
+            height: 170,
+            background: '#000000',
+            boxShadow:
+              '0 0 90px 30px rgba(139,92,246,0.6), inset 0 0 50px rgba(0,0,0,1), 0 0 140px 45px rgba(245,158,11,0.4)',
+            border: '2px solid rgba(255,255,255,0.2)',
           }}
-        />
-
-        {/* orbiting sparks */}
-        {[0, 1, 2, 3, 4].map((i) => (
+        >
+          {/* Internal Swirling Blackhole Void Core Texture */}
           <motion.div
-            key={i}
-            className="absolute w-1.5 h-1.5 rounded-full bg-white"
-            style={{ top: '50%', left: '50%', boxShadow: '0 0 8px 2px rgba(255,255,255,0.8)' }}
-            animate={{
-              x: [0, Math.cos((i / 5) * Math.PI * 2) * 220],
-              y: [0, Math.sin((i / 5) * Math.PI * 2) * 220],
-              rotate: 360,
-              opacity: [0.9, 0.2, 0.9],
+            className="w-full h-full rounded-full"
+            style={{
+              background:
+                'radial-gradient(circle at 35% 35%, rgba(139,92,246,0.4) 0%, rgba(0,0,0,0.95) 45%, #000000 100%)',
             }}
-            transition={{ duration: 12 + i * 2, repeat: Infinity, ease: 'linear' }}
+            animate={{ rotate: -360 }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
           />
-        ))}
+        </div>
+
+        {/* Gravitational Swirling Light Sparks (Spiraling into Singularity) */}
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+          const angle = (i / 8) * Math.PI * 2
+          const radius = 210
+          return (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 rounded-full"
+              style={{
+                top: '50%',
+                left: '50%',
+                background: i % 2 === 0 ? '#F59E0B' : '#38BDF8',
+                boxShadow: `0 0 12px 3px ${i % 2 === 0 ? '#F59E0B' : '#38BDF8'}`,
+              }}
+              animate={{
+                x: [Math.cos(angle) * radius, Math.cos(angle + Math.PI) * 40, 0],
+                y: [Math.sin(angle) * radius, Math.sin(angle + Math.PI) * 40, 0],
+                scale: [1, 0.4, 0],
+                opacity: [1, 0.8, 0],
+              }}
+              transition={{
+                duration: 4 + (i % 3),
+                repeat: Infinity,
+                ease: 'easeIn',
+                delay: i * 0.4,
+              }}
+            />
+          )
+        })}
       </div>
     </div>
   )
